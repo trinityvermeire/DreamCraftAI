@@ -1,0 +1,28 @@
+List of resources used:
+
+Backend:
+https://neptune.ai/blog/how-to-organize-deep-learning-projects-best-practices
+https://towardsdatascience.com/creating-restful-apis-using-flask-and-python-655bad51b24
+https://medium.com/@sudeshnb/to-connect-a-python-backend-to-a-flutter-mobile-app-a9f61f8d54f2
+https://projecthub.arduino.cc/ansh2919/serial-communication-between-python-and-arduino-663756
+https://roboticsbackend.com/raspberry-pi-arduino-serial-communication/
+https://forum.arduino.cc/t/using-python-to-read-and-process-serial-data-from-arduino/1059079
+
+LSTM:
+https://physionet.org/content/sleep-edf/1.0.0/
+https://gist.github.com/tylerwilliams/1542383
+https://www.kdnuggets.com/2022/03/build-machine-learning-web-app-5-minutes.html
+https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.train_test_split.html
+
+Database:
+https://stackoverflow.com/questions/52293033/how-to-convert-edf-file-into-csv-file-in-python
+https://www.w3schools.com/python/python_mysql_create_db.asp
+https://www.freecodecamp.org/news/connect-python-with-sql/
+
+Data:
+https://www.physionet.org/content/sleep-edfx/1.0.0/sleep-cassette/#files-panel
+
+EEG filter for pill:
+https://github.com/upsidedownlabs/BioAmp-EXG-Pill/blob/main/software/EEGFilter/EEGFilter.ino
+
+

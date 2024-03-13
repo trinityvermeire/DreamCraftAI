@@ -1,0 +1,5 @@
+VENV
+Command to activate virtual environment:
+Start: source venv/bin/activate
+close: deactivate
+

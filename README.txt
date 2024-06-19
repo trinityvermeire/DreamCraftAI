@@ -1,7 +1,7 @@
 DreamCraftAI
 
 Description:
-This repository contains implementations of multiple algorithms for sleep stage prediction using EEG (Electroencephalography) data. The goal is to utilize the LSTM neural network output to accurately produce binaural frequencies that increase restfullness and improve quality of sleep.
+DreamCraftAI is an application that uses real-time electroencephalograph data to produce a binaural beat audio that improves quality of sleep. The use of deep learning models such as LSTM and CNN allowed the classification of the current sleep stage as well as the prediction of the eminent future sleep stage. This allowed us to accurately produce binaural audio that entrained the brain with the oncoming frequency, producing a restful and deep sleep.
 
 Datasets:
 The repository includes datasets used for training and testing the algorithms. These datasets contain EEG data recorded during sleep sessions along with corresponding sleep stage annotations. Each dataset is preprocessed and formatted to be compatible with the algorithms.

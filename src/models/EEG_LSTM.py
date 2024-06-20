@@ -7,15 +7,17 @@ from keras.models import model_from_json, Model
 from keras.layers import Input, Dense, Concatenate, LSTM, Dropout
 from keras.losses import mean_squared_error
 from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import StandardScaler
+import tensorflow as tf
 import os
 
-input_dir = '/Users/trinityvermeire/DreamCraftAI/data/processed'
-eeg_input_shape = (2000, 1)
+input_dir = '/Users/trinityvermeire/DreamCraftAI/data/LSTM'
+eeg_input_shape = (1000, 1)
 sleep_input_shape = (7,)
 sleep_stages_input = ['Sleep stage 1', 'Sleep stage 2', 'Sleep stage 3', 'Sleep stage 4', 'Sleep stage R', 'Sleep stage W', 'Movement time']
 
 #function to load json file
-def load_model(input_dir, eeg_input_shape, sleep_input_shape):
+def load_model(input_dir):
     json_file_path = os.path.join(input_dir, "LSTM_DreamCraftAI.json")
     weights_file_path = os.path.join(input_dir, "LSTM_DreamCraftAI_Weights.h5")
     #load model architecture from JSON file
@@ -24,55 +26,69 @@ def load_model(input_dir, eeg_input_shape, sleep_input_shape):
     lstm_model = model_from_json(lstm_model_json)
     #load model weights from h5 file
     lstm_model.load_weights(weights_file_path)
-    #create combined model with LSTM branch and the new EEg + sleep stage branch
-    combined_model = create_combined_model(eeg_input_shape, sleep_input_shape, lstm_model)
-    return combined_model
+    return lstm_model
 
-#function to predict sleep stages from float values
-def predicted_sleep_stage(EEG_input, lstm_model):
-    predicted_stage = lstm_model.predict(EEG_input)
-    predicted_stage_index = np.argmax(predicted_stage)
-    return sleep_stages_input[predicted_stage_index]
+#function to create personalized LSTM model
+def create_personalized_lstm_model(base_model):
+    #define LSTM input layer
+    lstm_input = Input(shape=eeg_input_shape, name='LSTM_Input')
+    #freeze layers of the base model
+    for layer in base_model.layers:
+        layer.trainable = False
+    #connect LSTM input to base LSTM layers
+    lstm_output = base_model(lstm_input)
+    #cdd additional layers for personalization
+    personalized_output = Dense(units=300, activation='relu')(lstm_output)
+    personalized_output = Dense(units=len(sleep_stages_input), activation='softmax')(personalized_output)
+    # Create personalized model
+    personalized_model = Model(inputs=lstm_input, outputs=personalized_output)
+    # Compile model
+    optimizerF = tf.keras.optimizers.legacy.Adam(learning_rate=0.001)
+    personalized_model.compile(optimizer=optimizerF, loss='categorical_crossentropy', metrics=['accuracy'])
+    return personalized_model
 
-def create_combined_model(eeg_input_shape, sleep_input_shape, lstm_model):
-    #define EEG input layer
-    EEG_input = Input(shape=eeg_input_shape, name='EEG_Input')
-    #define LSTM branch
-    lstm_output = LSTM(units=330, return_sequences=True)(EEG_input)
-    lstm_output = Dropout(0.2)(lstm_output)
-    lstm_output = LSTM(units=210, return_sequences=True)(lstm_output)
-    lstm_output = LSTM(units=120)(lstm_output)
-    #define sleep stage input layer
-    sleep_stage_input = Input(shape=sleep_input_shape, name='Sleep_Stage_Input')
-    #concatenate LSTM output and sleep stage input
-    concat = Concatenate()([lstm_output, sleep_stage_input])
-    #add dense layers 
-    combined_output = Dense(units=128, activation='relu')(concat)
-    combined_output = Dense(units=64, activation='relu')(combined_output)
-    #define final output layer
-    final_output = Dense(units=1, activation=None)(combined_output) 
-    #create combined model
-    combined_model = Model(inputs=[EEG_input, sleep_stage_input], outputs=final_output)
-    combined_model.compile(optimizer='adam', loss=mean_squared_error)
-    return combined_model
+#function to predict sleep stages from LSTM model
+def predicted_sleep_stage(base_model, eeg_data):
+    # Predict sleep stage using the base model
+    return base_model.predict(eeg_data)
 
+#function to predict sleep stages from LSTM model
+def predicted_future_sleep_stage(base_model, eeg_data):
+    return base_model.predict(eeg_data[-1000:,:,:])
 
-#function to calculate standard deviation
-def calculate_std_dev(eeg_input, lstm_model):
-    #predict sleep stage from EEG input
-    predicted_stage = predicted_sleep_stage(eeg_input, lstm_model)
-    #encode sleep stage input
-    encoded_sleep_input, _ = encode_sleep_stages([predicted_stage])
-    #predict EEG values using the loaded model
-    predicted_eeg = lstm_model.predict([eeg_input, encoded_sleep_input])
-    #calculate standard deviation between predicted and input EEG values
-    return np.std(predicted_eeg - eeg_input)
+# Function to normalize EEG data
+def normalize_eeg_data(eeg_data):
+    # Reshape the EEG data to (-1, 1) shape
+    eeg_data = eeg_data.reshape(-1, 1)
+    # Initialize StandardScaler
+    scaler = StandardScaler()
+    # Fit the scaler to the data and transform it
+    normalized_data = scaler.fit_transform(eeg_data)
+    return normalized_data
 
-def encode_sleep_stages(sleep_stages):
-    label_encoder = LabelEncoder()
-    encoded_sleep_stages = label_encoder.fit_transform(sleep_stages)
-    return encoded_sleep_stages, label_encoder.classes_
+#funciton to iterate through the window of data points to be processed by the neural network
+def sliding_window(csv_file, window_size, step_size):
+    data = pd.read_csv(csv_file)
+    # Iterate through data with step size 
+    for i in range(0, len(data) - window_size, step_size):
+        window_data = data.iloc[i : i + window_size]
+        eeg_values = window_data.iloc[:, 0].values
+        # Normalize EEG values
+        normalized_eeg_values = normalize_eeg_data(eeg_values)
+        # Reshape the EEG values into a 3D array
+        normalized_eeg_values = np.expand_dims(normalized_eeg_values, axis=1)  # Add a new axis for features
+        normalized_eeg_values = np.expand_dims(normalized_eeg_values, axis=0)  # Add a new axis for batch size
+        yield normalized_eeg_values
 
-loaded_model = load_model(input_dir, eeg_input_shape, sleep_input_shape)
-serial_input = [np.random.rand(1, 2000, 1), np.random.rand(1, 7)]
-print("Standard Deviation:", calculate_std_dev(serial_input[0], loaded_model))
+# Load the LSTM model for predicting current sleep stage
+base_lstm_model = load_model(input_dir)
+
+# Create personalized LSTM model
+personalized_lstm_model = create_personalized_lstm_model(base_lstm_model)
+
+for eeg_values in sliding_window('/Users/trinityvermeire/DreamCraftAI/data/processed-freq/SC4001E0-EEG.csv', window_size=1000, step_size=1000):
+    # Perform testing on each window of EEG data
+    current_sleep_stage = predicted_sleep_stage(base_lstm_model, eeg_values)
+    future_sleep_stage = predicted_future_sleep_stage(personalized_lstm_model, eeg_values)
+    print("Current Sleep Stage:", sleep_stages_input[np.argmax(current_sleep_stage)])
+    print("Future Sleep Stage:", sleep_stages_input[np.argmax(future_sleep_stage)])
